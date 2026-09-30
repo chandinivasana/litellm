@@ -66,7 +66,7 @@ class AgentNode(TypedDict):
     invocations: int
     llm_calls: int
     tool_calls: int
-    spend: float
+    spend: float | None
     duration_ms: float
 
 
@@ -86,7 +86,7 @@ class TraceSummary(TypedDict):
     error_count: int  # spans with an error status; > 0 means the run shows as failed
     input_tokens: int
     output_tokens: int
-    spend: float
+    spend: float | None
     models: list[str]
 
 

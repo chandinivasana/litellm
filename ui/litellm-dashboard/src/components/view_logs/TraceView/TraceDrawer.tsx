@@ -113,7 +113,7 @@ export function TraceStats({ trace }: { trace: Trace }) {
 
 function AgentCostSplit({ trace }: { trace: Trace }) {
   if (trace.agents.length < 2) return null;
-  const sorted = [...trace.agents].sort((a, b) => b.spend - a.spend);
+  const sorted = [...trace.agents].sort((a, b) => (b.spend ?? 0) - (a.spend ?? 0));
   return (
     <div aria-label="Cost by agent" className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
       <span>Cost by agent:</span>

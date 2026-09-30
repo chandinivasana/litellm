@@ -102,6 +102,7 @@ export function buildVisibleTree(spans: readonly Span[], showFramework: boolean)
 
 export interface SubtreeStats {
   spend: number;
+  hasSpend: boolean;
   errors: number;
 }
 
@@ -112,12 +113,12 @@ export function subtreeStats(spans: readonly Span[]): Map<string, SubtreeStats> 
   const visit = (span: Span): SubtreeStats => {
     const cached = stats.get(span.span_id);
     if (cached) return cached;
-    const own: SubtreeStats = { spend: spanSpend(span), errors: span.status === "error" ? 1 : 0 };
-    for (const child of raw.get(span.span_id) ?? []) {
-      const childStats = visit(child);
-      own.spend += childStats.spend;
-      own.errors += childStats.errors;
-    }
+    const children = (raw.get(span.span_id) ?? []).map(visit);
+    const own: SubtreeStats = {
+      spend: spanSpend(span) + children.reduce((total, child) => total + child.spend, 0),
+      hasSpend: span.litellm !== null || children.some((child) => child.hasSpend),
+      errors: Number(span.status === "error") + children.reduce((total, child) => total + child.errors, 0),
+    };
     stats.set(span.span_id, own);
     return own;
   };
@@ -139,6 +140,7 @@ export interface SpanGroup {
   name: string;
   spans: Span[];
   spend: number;
+  hasSpend: boolean;
   p50Ms: number;
   errors: number;
 }
@@ -159,6 +161,7 @@ const buildGroup = (parentKey: string, name: string, members: Span[], stats: Map
   name,
   spans: members,
   spend: members.reduce((sum, s) => sum + (stats.get(s.span_id)?.spend ?? 0), 0),
+  hasSpend: members.some((s) => stats.get(s.span_id)?.hasSpend),
   p50Ms: median(members.map((s) => s.duration_ms)),
   errors: members.filter((s) => (stats.get(s.span_id)?.errors ?? 0) > 0).length,
 });
@@ -429,14 +432,14 @@ function agentDepths(agents: readonly AgentNode[]): Map<string, number> {
 /** Left-to-right layered layout: one column per nesting level, node width by spend. */
 export function layoutAgentGraph(agents: readonly AgentNode[]): GraphLayout {
   const depths = agentDepths(agents);
-  const maxSpend = Math.max(0, ...agents.map((a) => a.spend));
+  const maxSpend = Math.max(0, ...agents.map((a) => a.spend ?? 0));
   const columnWidth = GRAPH_MAX_NODE_WIDTH + GRAPH_COLUMN_GAP;
   const rowsPerColumn = new Map<number, number>();
   const nodes: GraphNode[] = agents.map((agent) => {
     const depth = depths.get(agent.name) ?? 0;
     const row = rowsPerColumn.get(depth) ?? 0;
     rowsPerColumn.set(depth, row + 1);
-    const share = maxSpend > 0 ? agent.spend / maxSpend : 0;
+    const share = maxSpend > 0 ? (agent.spend ?? 0) / maxSpend : 0;
     return {
       agent,
       x: GRAPH_PADDING + depth * columnWidth,

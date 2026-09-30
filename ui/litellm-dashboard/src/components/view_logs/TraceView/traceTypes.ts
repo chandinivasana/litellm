@@ -53,7 +53,7 @@ export interface AgentNode {
   invocations: number;
   llm_calls: number;
   tool_calls: number;
-  spend: number;
+  spend: number | null;
   duration_ms: number;
 }
 
@@ -74,7 +74,7 @@ export interface TraceSummary {
   error_count: number;
   input_tokens: number;
   output_tokens: number;
-  spend: number;
+  spend: number | null;
   models: string[];
 }
 

@@ -29,7 +29,8 @@ const spanMeta = (span: Span): string => {
 
 export const groupSummary = (group: SpanGroup): string => {
   const errors = group.errors ? ` · ${group.errors} error${group.errors === 1 ? "" : "s"}` : "";
-  return `${group.name} ×${group.spans.length} · ${fmtCost(group.spend)} · p50 ${fmtMs(group.p50Ms)}${errors}`;
+  const cost = group.hasSpend ? ` · ${fmtCost(group.spend)}` : "";
+  return `${group.name} ×${group.spans.length}${cost} · p50 ${fmtMs(group.p50Ms)}${errors}`;
 };
 
 function Guides({ depth }: { depth: number }) {

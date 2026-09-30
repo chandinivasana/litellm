@@ -55,7 +55,8 @@ SELECT t.TraceId AS trace_id, any(t.RootName) AS name, any(t.ServiceName) AS ser
        any(t.AgentCount) AS agent_invocations,
        any(t.LlmCount) AS llm_calls, any(t.ToolCount) AS tool_calls,
        any(t.InputTokens) AS input_tokens, any(t.OutputTokens) AS output_tokens,
-       any(t.Models) AS models, any(t.ErrorCount) AS error_count, sum(s.spend) AS spend
+       any(t.Models) AS models, any(t.ErrorCount) AS error_count,
+       if(countIf(s.response_id != '') = 0, NULL, sum(s.spend)) AS spend
 FROM (
     SELECT TeamId, TraceId, min(StartTs) AS StartTs, max(EndTs) AS EndTs,
            any(ServiceName) AS ServiceName, anyLastIf(a.RootName, a.RootName != '') AS RootName,
@@ -161,7 +162,7 @@ def trace_summary_from_row(row: dict[str, Any]) -> TraceSummary:
         error_count=int(row.get("error_count") or 0),
         input_tokens=int(row["input_tokens"]),
         output_tokens=int(row["output_tokens"]),
-        spend=float(row["spend"] or 0.0),
+        spend=float(row["spend"]) if row["spend"] is not None else None,
         models=list(row["models"]),
     )
 
@@ -232,7 +233,7 @@ def agent_nodes(spans: list[Span]) -> list[AgentNode]:
                 invocations=0,
                 llm_calls=0,
                 tool_calls=0,
-                spend=0.0,
+                spend=None,
                 duration_ms=0.0,
             ),
         )
@@ -244,7 +245,8 @@ def agent_nodes(spans: list[Span]) -> list[AgentNode]:
             continue
         if span["type"] == "llm":
             owner["llm_calls"] += 1
-            owner["spend"] += span["litellm"]["spend"] if span["litellm"] else 0.0
+            if span["litellm"]:
+                owner["spend"] = (owner["spend"] or 0.0) + span["litellm"]["spend"]
         elif span["type"] == "tool":
             owner["tool_calls"] += 1
     return list(agents.values())
@@ -276,7 +278,9 @@ def trace_from_rows(trace_id: str, rows: list[dict[str, Any]]) -> Trace | None:
             error_count=sum(1 for s in spans if s["status"] == "error"),
             input_tokens=sum(s["input_tokens"] for s in spans),
             output_tokens=sum(s["output_tokens"] for s in spans),
-            spend=sum(s["litellm"]["spend"] for s in llm_spans if s["litellm"]),
+            spend=sum(s["litellm"]["spend"] for s in llm_spans if s["litellm"])
+            if any(s["litellm"] for s in llm_spans)
+            else None,
             models=sorted({s["model"] for s in llm_spans if s["model"]}),
         ),
         agents=agents,

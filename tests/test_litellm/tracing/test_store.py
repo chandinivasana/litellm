@@ -143,7 +143,14 @@ def test_llm_span_without_spend_log_has_no_litellm():
     trace = trace_from_rows("t1", rows)
     assert trace is not None
     assert trace["spans"][1]["litellm"] is None
-    assert trace["summary"]["spend"] == 0
+    assert trace["summary"]["spend"] is None
+
+
+def test_zero_cost_spend_log_is_distinct_from_missing_spend_log():
+    trace = trace_from_rows("t1", [_row("root", "", "a", "agent", "a"), _llm_row("llm", "root", "a", "req", 0.0)])
+    assert trace is not None
+    assert trace["summary"]["spend"] == 0.0
+    assert trace["agents"][0]["spend"] == 0.0
 
 
 def test_summary_totals():
@@ -292,7 +299,7 @@ def test_trace_summary_from_row():
         }
     )
     assert summary["status"] == "ok"
-    assert (summary["span_count"], summary["error_count"], summary["spend"]) == (126, 1, 0.0)
+    assert (summary["span_count"], summary["error_count"], summary["spend"]) == (126, 1, None)
     assert summary["start_time"] == "2026-09-30T04:36:29.377000+00:00"
 
 

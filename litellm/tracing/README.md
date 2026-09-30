@@ -203,6 +203,7 @@ to 4 `researcher` subagents and a `critic`). 216 spans, trimmed to five:
 Spans are flat and ordered by start time. Build the tree from `parent_span_id`. `litellm` is set only on
 llm spans that matched a spend-log row. `status` is the root span's status, while `error_count` counts
 every span with an error status (a tool that raised shows up there even when the agent recovered).
+When no spend row matches, `spend` is null and the UI shows an unavailable cost rather than `$0`.
 
 `GET /v1/traces?start_ms=&end_ms=&cursor=` → `TracePage` (newest first, default window 24h, page size
 `AGENT_TRACING_LIST_PAGE_SIZE`=50):

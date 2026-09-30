@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import deepAgentTrace from "./__fixtures__/deep_agent_trace.json";
 import researchTrace from "./__fixtures__/research_trace.json";
 import swarmTrace from "./__fixtures__/swarm_trace.json";
+import { groupSummary } from "./SpanTree";
 import type { Span, Trace } from "./traceTypes";
 import {
   agentBadgeLabel,
@@ -157,6 +158,17 @@ describe("groupSiblingAgents", () => {
     );
     const items = groupSiblingAgents("p", kids, subtreeStats([parent, ...kids]));
     expect(items.every((i) => i.kind === "span")).toBe(true);
+  });
+
+  it("does not show a zero cost when grouped spans have no spend rows", () => {
+    const parent = span({ span_id: "p", type: "agent" });
+    const children = Array.from({ length: 11 }, (_, index) =>
+      span({ span_id: `child-${index}`, parent_span_id: "p", type: "agent", name: "worker" }),
+    );
+    const items = groupSiblingAgents("p", children, subtreeStats([parent, ...children]));
+    const group = items.find((item) => item.kind === "group");
+    if (group?.kind !== "group") throw new Error("expected a group");
+    expect(groupSummary(group.group)).toBe("worker ×11 · p50 1.0ms");
   });
 });
 
